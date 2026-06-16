@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Secure Chat</title>
+
+<style>
+body {
+    margin: 0;
+    font-family: 'Segoe UI', sans-serif;
+    height: 100vh;
+    display: flex;
+
+    /* 🔥 SAME LOGIN BACKGROUND */
+    background: radial-gradient(circle at center, #0f3d2e, #081c15);
+    color: white;
+}
+
+/* MAIN */
+.container {
+    display: flex;
+    width: 100%;
+}
+
+/* LEFT PANEL */
+#usersPanel {
+    width: 25%;
+    padding: 15px;
+
+    background: rgba(255,255,255,0.05);
+    backdrop-filter: blur(10px);
+
+    border-right: 1px solid rgba(255,255,255,0.1);
+}
+
+#usersPanel h3 {
+    margin-bottom: 15px;
+}
+
+/* USER ITEM */
+.user {
+    padding: 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    margin-bottom: 8px;
+}
+
+.user:hover {
+    background: rgba(0,255,150,0.2);
+}
+
+.selected {
+    background: #25d366;
+    color: black;
+}
+
+/* RIGHT PANEL */
+#chatPanel {
+    width: 75%;
+    display: flex;
+    flex-direction: column;
+}
+
+/* HEADER */
+#chatWith {
+    padding: 15px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+/* MESSAGES */
+#messages {
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+}
+
+/* MESSAGE BUBBLES */
+.msg {
+    max-width: 60%;
+    padding: 10px;
+    margin: 8px 0;
+    border-radius: 10px;
+    word-wrap: break-word;
+}
+
+.sent {
+    background: #25d366;
+    color: black;
+    margin-left: auto;
+}
+
+.received {
+    background: rgba(255,255,255,0.1);
+}
+
+/* INPUT */
+#inputArea {
+    display: flex;
+    padding: 10px;
+}
+
+#inputArea input {
+    flex: 1;
+    padding: 10px;
+    border-radius: 20px;
+    border: none;
+}
+
+#inputArea button {
+    margin-left: 10px;
+    padding: 10px 15px;
+    border: none;
+    border-radius: 20px;
+    background: #25d366;
+    cursor: pointer;
+}
+</style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+    <!-- USERS -->
+    <div id="usersPanel">
+        <h3>Users</h3>
+        <div id="users"></div>
+    </div>
+
+    <!-- CHAT -->
+    <div id="chatPanel">
+
+        <h3 id="chatWith">Select a user</h3>
+
+        <div id="messages"></div>
+
+        <div id="inputArea">
+            <input id="msg" placeholder="Type message">
+            <button onclick="send()">Send</button>
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+
+// 🟢 USER
+let user = localStorage.getItem("username");
+
+if (!user) {
+    alert("Login first");
+    window.location = "login.html";
+}
+
+let selectedUser = null;
+
+
+// 🟢 SOCKET
+let socket = new WebSocket("ws://localhost:8080/chat?username=" + user);
+
+
+// 🟢 RECEIVE
+socket.onmessage = function(event) {
+
+    let data = event.data;
+
+    // 🔥 USER LIST
+    if (data.startsWith("USERS:")) {
+
+        let users = data.replace("USERS:", "").split(",");
+        let container = document.getElementById("users");
+
+        container.innerHTML = "";
+
+        users.forEach(u => {
+
+            if (u !== user) {
+
+                let div = document.createElement("div");
+                div.className = "user";
+                div.innerText = u;
+
+                div.onclick = () => selectUser(u, div);
+
+                container.appendChild(div);
+            }
+        });
+
+        return;
+    }
+
+    // 🔥 MESSAGE UI UPGRADE
+    if (selectedUser) {
+
+        let msgDiv = document.createElement("div");
+
+        if (data.startsWith(user + ":")) {
+            msgDiv.className = "msg sent";
+        } else {
+            msgDiv.className = "msg received";
+        }
+
+        msgDiv.innerText = data;
+
+        document.getElementById("messages").appendChild(msgDiv);
+
+        // auto scroll
+        let chat = document.getElementById("messages");
+        chat.scrollTop = chat.scrollHeight;
+    }
+};
+
+
+// 🟢 SELECT USER
+function selectUser(u, element) {
+
+    selectedUser = u;
+
+    document.getElementById("chatWith").innerText = "Chat with " + u;
+
+    document.querySelectorAll(".user").forEach(e => e.classList.remove("selected"));
+    element.classList.add("selected");
+
+    loadMessages();
+}
+
+
+// 🟢 SEND
+function send() {
+
+    if (!selectedUser) {
+        alert("Select a user first");
+        return;
+    }
+
+    let msg = document.getElementById("msg").value;
+
+    if (!msg) return;
+
+    socket.send(user + "|" + selectedUser + ":" + msg);
+
+    document.getElementById("msg").value = "";
+}
+
+
+// 🟢 LOAD OLD MESSAGES
+function loadMessages() {
+
+    fetch("/messages")
+    .then(res => res.json())
+    .then(data => {
+
+        let chat = document.getElementById("messages");
+        chat.innerHTML = "";
+
+        data.forEach(m => {
+
+            if (
+                (m.sender === user && m.receiver === selectedUser) ||
+                (m.sender === selectedUser && m.receiver === user)
+            ) {
+
+                let msgDiv = document.createElement("div");
+
+                if (m.sender === user) {
+                    msgDiv.className = "msg sent";
+                } else {
+                    msgDiv.className = "msg received";
+                }
+
+                msgDiv.innerText = m.sender + ": " + m.content;
+
+                chat.appendChild(msgDiv);
+            }
+        });
+    });
+}
+
+</script>
+
+</body>
+</html>

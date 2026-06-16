@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Login</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+ 
+<style>
+  :root {
+    --accent: #4ade80;
+    --text: #e8f5ea;
+    --text-muted: #7aab84;
+    --input-bg: rgba(255,255,255,0.07);
+    --input-border: rgba(255,255,255,0.13);
+    --input-focus: rgba(74,222,128,0.35);
+    --btn-grad: linear-gradient(135deg, #22c55e 0%, #15803d 100%);
+  }
+ 
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+ 
+  body {
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-family: 'DM Sans', sans-serif;
+    background: #080e09;
+    overflow: hidden;
+    position: relative;
+    transition: background 1s ease;
+  }
+ 
+  /* Grain overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+  }
+ 
+  /* Big ambient glow when ON */
+  .scene-glow {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 700px; height: 700px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(34,197,94,0.13) 0%, rgba(34,197,94,0.05) 40%, transparent 70%);
+    opacity: 0;
+    transition: opacity 1.1s ease;
+    pointer-events: none;
+    z-index: 0;
+  }
+  body.lamp-on .scene-glow { opacity: 1; }
+ 
+  /* Card shell */
+  .card {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: stretch;
+    border-radius: 22px;
+    overflow: hidden;
+    transition: box-shadow 0.9s ease, background 0.9s ease, border 0.9s ease;
+    border: 1px solid transparent;
+  }
+  body.lamp-on .card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.07);
+    box-shadow:
+      0 8px 40px rgba(0,0,0,0.55),
+      0 0 80px rgba(74,222,128,0.10),
+      inset 0 1px 0 rgba(255,255,255,0.06);
+    backdrop-filter: blur(18px);
+  }
+ 
+  /* ── Lamp Side ── */
+  .lamp-card-side {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    position: relative;
+    padding: 0 40px 54px;
+    min-height: 400px;
+  }
+ 
+  .ceiling-glow {
+    position: absolute;
+    top: 0; left: 50%;
+    transform: translateX(-50%);
+    width: 280px; height: 150px;
+    background: radial-gradient(ellipse, rgba(74,222,128,0.28) 0%, transparent 70%);
+    opacity: 0;
+    transition: opacity 1s ease;
+    filter: blur(8px);
+    pointer-events: none;
+  }
+  body.lamp-on .ceiling-glow { opacity: 1; }
+ 
+  .light-cone {
+    position: absolute;
+    bottom: 54px; left: 50%;
+    transform: translateX(-50%);
+    width: 0; height: 0;
+    border-left: 95px solid transparent;
+    border-right: 95px solid transparent;
+    border-top: 210px solid rgba(74,222,128,0.06);
+    opacity: 0;
+    transition: opacity 1s ease;
+    filter: blur(3px);
+    pointer-events: none;
+  }
+  body.lamp-on .light-cone { opacity: 1; }
+ 
+  .floor-glow {
+    position: absolute;
+    bottom: 0; left: 50%;
+    transform: translateX(-50%);
+    width: 210px; height: 44px;
+    background: radial-gradient(ellipse, rgba(74,222,128,0.3) 0%, transparent 70%);
+    opacity: 0;
+    transition: opacity 1s ease;
+    filter: blur(5px);
+    pointer-events: none;
+  }
+  body.lamp-on .floor-glow { opacity: 1; }
+ 
+  /* SVG Lamp wrapper */
+  .lamp-wrap {
+    position: relative;
+    z-index: 2;
+    cursor: pointer;
+    transition: filter 0.7s ease, transform 0.2s ease;
+    user-select: none;
+  }
+  .lamp-wrap:hover { transform: scale(1.04); }
+  .lamp-wrap:active { transform: scale(0.97); }
+  body.lamp-on .lamp-wrap {
+    filter:
+      drop-shadow(0 0 24px rgba(74,222,128,0.65))
+      drop-shadow(0 2px 8px rgba(0,0,0,0.5));
+  }
+ 
+  .shade-fill { transition: fill 0.7s ease; }
+  body.lamp-on .shade-fill { fill: #eef5ec !important; }
+ 
+  .bulb-dot { transition: fill 0.5s ease; }
+  body.lamp-on .bulb-dot { fill: #ccfce0 !important; }
+ 
+  /* Pull cord */
+  .pull-cord {
+    position: absolute;
+    left: 50%; bottom: -42px;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    z-index: 3;
+  }
+  .cord-line {
+    width: 2px; height: 30px;
+    background: linear-gradient(to bottom, rgba(180,180,160,0.55), rgba(180,180,160,0.1));
+  }
+  .cord-knob {
+    width: 11px; height: 11px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #f0e68c, #b8a030);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+    transition: transform 0.15s ease, background 0.5s, box-shadow 0.5s;
+  }
+  .cord-knob:active { transform: translateY(5px); }
+  body.lamp-on .cord-knob {
+    background: radial-gradient(circle at 35% 35%, #fffde0, #d4a800);
+    box-shadow: 0 0 10px rgba(212,168,0,0.7), 0 1px 4px rgba(0,0,0,0.4);
+  }
+ 
+  /* Hint */
+  .lamp-hint {
+    position: absolute;
+    bottom: 6px;
+    font-size: 10.5px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    opacity: 0.45;
+    transition: opacity 0.4s;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+  body.lamp-on .lamp-hint { opacity: 0; }
+ 
+  /* ── Form Panel — slides in from right ── */
+  .form-panel {
+    overflow: hidden;
+    max-width: 0;
+    opacity: 0;
+    padding: 0;
+    border-left: 1px solid transparent;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    transition:
+      max-width 0.95s cubic-bezier(0.4, 0, 0.2, 1),
+      opacity 0.65s ease 0.5s,
+      padding 0.95s cubic-bezier(0.4, 0, 0.2, 1),
+      border-color 0.95s ease;
+  }
+  body.lamp-on .form-panel {
+    max-width: 380px;
+    opacity: 1;
+    padding: 50px 42px;
+    border-left: 1px solid rgba(255,255,255,0.08);
+  }
+ 
+  /* Form typography */
+  .form-eyebrow {
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 10px;
+    opacity: 0.8;
+  }
+  .form-title {
+    font-family: 'Playfair Display', serif;
+    font-style: italic;
+    font-size: 34px;
+    color: var(--text);
+    line-height: 1.1;
+    margin-bottom: 6px;
+  }
+  .form-sub {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 30px;
+    font-weight: 300;
+  }
+ 
+  .field { margin-bottom: 16px; }
+  .field label {
+    display: block;
+    font-size: 10.5px;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 7px;
+    font-weight: 500;
+  }
+  .field input {
+    width: 100%;
+    padding: 12px 15px;
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.3s, box-shadow 0.3s, background 0.3s;
+    -webkit-appearance: none;
+  }
+  .field input::placeholder { color: rgba(122,171,132,0.4); }
+  .field input:focus {
+    border-color: rgba(74,222,128,0.5);
+    box-shadow: 0 0 0 3px var(--input-focus);
+    background: rgba(74,222,128,0.05);
+  }
+ 
+  .sign-in-btn {
+    width: 100%;
+    padding: 14px;
+    margin-top: 8px;
+    border: none;
+    border-radius: 10px;
+    background: var(--btn-grad);
+    color: #052010;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(34,197,94,0.35);
+    transition: box-shadow 0.25s, transform 0.15s, filter 0.2s;
+  }
+  .sign-in-btn:hover {
+    box-shadow: 0 6px 28px rgba(34,197,94,0.5);
+    filter: brightness(1.08);
+  }
+  .sign-in-btn:active { transform: translateY(1px); }
+ 
+  .form-footer {
+    margin-top: 18px;
+    font-size: 13px;
+    color: var(--text-muted);
+    text-align: center;
+  }
+  .form-footer a {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 500;
+  }
+  .form-footer a:hover { opacity: 0.75; }
+ 
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 30px; left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: rgba(14,60,25,0.96);
+    border: 1px solid rgba(74,222,128,0.3);
+    color: #86efac;
+    padding: 11px 24px;
+    border-radius: 50px;
+    font-size: 13px;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 500;
+    backdrop-filter: blur(12px);
+    opacity: 0;
+    transition: opacity 0.4s, transform 0.4s;
+    pointer-events: none;
+    z-index: 100;
+    white-space: nowrap;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+ 
+<div class="scene-glow"></div>
+ 
+<div class="card">
+ 
+  <!-- Lamp -->
+  <div class="lamp-card-side">
+    <div class="ceiling-glow"></div>
+    <div class="light-cone"></div>
+ 
+    <div class="lamp-wrap" onclick="toggleLamp()">
+      <svg width="150" height="200" viewBox="0 0 150 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="sg" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#caced0"/>
+            <stop offset="100%" stop-color="#adb4ad"/>
+          </linearGradient>
+          <linearGradient id="stg" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#8a918a"/>
+            <stop offset="50%" stop-color="#c2cac2"/>
+            <stop offset="100%" stop-color="#8a918a"/>
+          </linearGradient>
+          <linearGradient id="bg2" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#c2cac2"/>
+            <stop offset="100%" stop-color="#8a908a"/>
+          </linearGradient>
+          <radialGradient id="innerShade" cx="50%" cy="85%" r="50%">
+            <stop offset="0%" stop-color="rgba(180,220,180,0.12)"/>
+            <stop offset="100%" stop-color="rgba(0,0,0,0)"/>
+          </radialGradient>
+        </defs>
+        <!-- Dome top -->
+        <ellipse cx="75" cy="66" rx="59" ry="13" fill="url(#sg)" class="shade-fill"/>
+        <!-- Dome body -->
+        <path d="M16 66 Q22 91 42 98 L108 98 Q128 91 134 66 Z" fill="url(#sg)" class="shade-fill"/>
+        <path d="M16 66 Q22 91 42 98 L108 98 Q128 91 134 66 Z" fill="url(#innerShade)"/>
+        <!-- Rim -->
+        <ellipse cx="75" cy="98" rx="33" ry="5.5" fill="#9aa09a"/>
+        <!-- Highlight -->
+        <path d="M23 70 Q33 62 53 60" stroke="rgba(255,255,255,0.22)" stroke-width="2" stroke-linecap="round" fill="none"/>
+        <!-- Bulb -->
+        <circle cx="75" cy="94" r="5" fill="#b0b070" class="bulb-dot"/>
+        <!-- Stem -->
+        <rect x="71" y="104" width="8" height="68" rx="4" fill="url(#stg)"/>
+        <!-- Base -->
+        <ellipse cx="75" cy="172" rx="30" ry="6.5" fill="url(#bg2)"/>
+        <rect x="45" y="172" width="60" height="11" rx="5.5" fill="url(#bg2)"/>
+        <ellipse cx="75" cy="183" rx="30" ry="5" fill="#828882"/>
+      </svg>
+ 
+      <!-- Pull cord -->
+      <div class="pull-cord" onclick="toggleLamp(); event.stopPropagation()">
+        <div class="cord-line"></div>
+        <div class="cord-knob"></div>
+      </div>
+    </div>
+ 
+    <div class="floor-glow"></div>
+    <p class="lamp-hint">Click lamp to illuminate</p>
+  </div>
+ 
+  <!-- Form — hidden until lamp ON -->
+  <div class="form-panel">
+    <p class="form-eyebrow">Secure Access</p>
+    <h1 class="form-title">Welcome back.</h1>
+    <p class="form-sub">Sign in to continue your session</p>
+ 
+    <div class="field">
+      <label for="username">Username</label>
+      <input type="text" id="username" placeholder="your username" autocomplete="username">
+    </div>
+ 
+    <div class="field">
+      <label for="password">Password</label>
+      <input type="password" id="password" placeholder="••••••••" autocomplete="current-password">
+    </div>
+ 
+    <button class="sign-in-btn" onclick="login()">Sign In</button>
+ 
+    <p class="form-footer">No account? <a href="register.html">Create one</a></p>
+  </div>
+ 
+</div>
+ 
+<div class="toast" id="toast"></div>
+ 
+<script>
+  let isOn = false;
+ 
+  function toggleLamp() {
+    isOn = !isOn;
+    document.body.classList.toggle('lamp-on', isOn);
+    if (isOn) {
+      setTimeout(() => document.getElementById('username').focus(), 980);
+    }
+  }
+ 
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3000);
+  }
+ 
+  function login() {
+    const username = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value;
+    if (!username || !password) { showToast('Please fill in all fields.'); return; }
+ 
+    fetch('/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    })
+    .then(r => r.text())
+    .then(msg => {
+      showToast(msg);
+      if (msg === 'Login successful') {
+        localStorage.setItem('username', username);
+        window.location.href = 'chat.html';
+      }
+    })
+    .catch(() => showToast('Connection error. Please try again.'));
+  }
+ 
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && isOn) login();
+  });
+</script>
+ 
+</body>
+</html>
